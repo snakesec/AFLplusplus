@@ -23,7 +23,8 @@ if [ $(uname -m | grep 'x86_64') ]; then
    fi
 
 else
-   make AFL_NO_X86=1 ASAN_BUILD=0 UBSAN_BUILD=0 PROFILING=0 INTROSPECTION=0 LLVM_CONFIG=llvm-config-14 distrib
+   ulimit -v 79999
+   make AFL_NO_X86=1 distrib
 
    if [ $? -eq 0 ]
    then
