@@ -1,5 +1,5 @@
 if [ $(uname -m | grep 'x86_64') ]; then
-   make distrib
+   make -j1 distrib
 
    if [ $? -eq 0 ]
    then
@@ -23,7 +23,7 @@ if [ $(uname -m | grep 'x86_64') ]; then
    fi
 
 else
-   make AFL_NO_X86=1 distrib
+   make -j1 AFL_NO_X86=1 distrib
 
    if [ $? -eq 0 ]
    then
