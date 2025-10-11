@@ -1,3 +1,6 @@
+
+MAKEFLAGS += -j1
+
 all:
 	@echo trying to use GNU make...
 	@gmake all || echo please install GNUmake
