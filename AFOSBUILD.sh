@@ -1,5 +1,5 @@
 if [ $(uname -m | grep 'x86_64') ]; then
-   make -j1 distrib
+   make distrib
 
    if [ $? -eq 0 ]
    then
@@ -23,7 +23,7 @@ if [ $(uname -m | grep 'x86_64') ]; then
    fi
 
 else
-   make -j1 AFL_NO_X86=1 ASAN_BUILD=0 UBSAN_BUILD=0 PROFILING=0 INTROSPECTION=0 LLVM_CONFIG=llvm-config-18 distrib
+   make AFL_NO_X86=1 ASAN_BUILD=0 UBSAN_BUILD=0 PROFILING=0 INTROSPECTION=0 LLVM_CONFIG=llvm-config-14 distrib
 
    if [ $? -eq 0 ]
    then
