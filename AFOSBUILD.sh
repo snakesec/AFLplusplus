@@ -23,7 +23,6 @@ if [ $(uname -m | grep 'x86_64') ]; then
    fi
 
 else
-   ulimit -v 79999
    make AFL_NO_X86=1 distrib
 
    if [ $? -eq 0 ]
