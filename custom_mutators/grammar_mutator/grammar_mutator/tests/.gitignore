@@ -1,6 +1,0 @@
-# Ignore executable files
-test_*
-!test_*.cpp
-
-# Ignore Valgrind logs
-valgrind_logs/**

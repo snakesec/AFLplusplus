@@ -1,3 +1,6 @@
+
+rm -rf .git* # Force download modules from official repo
+
 if [ $(uname -m | grep 'x86_64') ]; then
    make distrib
 
