@@ -44,8 +44,8 @@ __attribute__((weak)) void __sanitizer_symbolize_pc(void *, const char *fmt,
 #include "afl-ijon-min.h"
 
 /* For backtrace() support in ijon_hashstack */
-#if defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) || \
-    defined(__NetBSD__) || defined(__OpenBSD__)
+#if (defined(__linux__) && defined(__GLIBC__)) || defined(__APPLE__) || \
+    defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
   #include <execinfo.h>
 #endif
 
@@ -74,8 +74,8 @@ __attribute__((weak)) void __sanitizer_symbolize_pc(void *, const char *fmt,
 #include <sys/wait.h>
 #include <sys/types.h>
 
-#if defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) || \
-    defined(__NetBSD__) || defined(__OpenBSD__)
+#if (defined(__linux__) && defined(__GLIBC__)) || defined(__APPLE__) || \
+    defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
   #include <execinfo.h>
 #endif
 
@@ -112,6 +112,43 @@ __attribute__((weak)) void __sanitizer_symbolize_pc(void *, const char *fmt,
 #ifdef AFL_PERSISTENT_RECORD
   #include "afl-persistent-replay.h"
 #endif
+
+#if !defined(__has_attribute)
+  #define __has_attribute(x) 0
+#endif
+
+/* Portable "no ASan" attribute */
+#if defined(__clang__)
+  #if __has_attribute(no_sanitize)
+    #define NOASAN __attribute__((no_sanitize("address")))
+  #elif __has_attribute(no_sanitize_address)
+    #define NOASAN __attribute__((no_sanitize_address))
+  #else
+    #define NOASAN
+  #endif
+#elif defined(__GNUC__)
+  /* GCC: uses no_sanitize_address */
+  #if __has_attribute(no_sanitize_address) || (__GNUC__ >= 5)
+    #define NOASAN __attribute__((no_sanitize_address))
+  #else
+    #define NOASAN
+  #endif
+#else
+  #define NOASAN
+#endif
+
+#if defined(__GNUC__) || defined(__clang__)
+  #define FORCEINLINE __attribute__((always_inline)) inline
+#else
+  #define FORCEINLINE inline
+#endif
+
+// lowers to inline memset, no libc call to interpose
+static FORCEINLINE NOASAN void *memset_noasan(void *dst, int c, size_t n) {
+
+  return __builtin_memset(dst, c, n);
+
+}
 
 /* Globals needed by the injected instrumentation. The __afl_area_initial region
    is used for instrumentation output before __afl_map_shm() has a chance to
@@ -1300,9 +1337,9 @@ int __afl_persistent_loop(unsigned int max_cnt) {
        iteration, it's our job to erase any trace of whatever happened
        before the loop. */
 
-    memset(__afl_area_ptr, 0, __afl_set_map_size);
+    memset_noasan(__afl_area_ptr, 0, __afl_set_map_size);
     __afl_area_ptr[0] = 1;
-    memset(__afl_prev_loc, 0, NGRAM_SIZE_MAX * sizeof(PREV_LOC_T));
+    memset_noasan(__afl_prev_loc, 0, NGRAM_SIZE_MAX * sizeof(PREV_LOC_T));
 
     first_pass = 0;
     __afl_selective_coverage_temp = 1;
@@ -1360,9 +1397,14 @@ int __afl_persistent_loop(unsigned int max_cnt) {
     raise(SIGSTOP);
 
     __afl_area_ptr[0] = 1;
-    __afl_ijon_state = 0;
-    memset(__afl_prev_loc, 0, NGRAM_SIZE_MAX * sizeof(PREV_LOC_T));
-    __afl_selective_coverage_temp = 1;
+    if (unlikely(__afl_ijon_state)) { __afl_ijon_state = 0; }
+    if (unlikely(__afl_selective_coverage_temp)) {
+
+      __afl_selective_coverage_temp = 0;
+
+    }
+
+    memset_noasan(__afl_prev_loc, 0, NGRAM_SIZE_MAX * sizeof(PREV_LOC_T));
 
     return 1;
 
@@ -3054,10 +3096,14 @@ void __afl_coverage_on() {
 // discard all coverage up to this point
 void __afl_coverage_discard() {
 
-  memset(__afl_area_ptr_backup, 0, __afl_map_size);
+  memset_noasan(__afl_area_ptr_backup, 0, __afl_map_size);
   __afl_area_ptr_backup[0] = 1;
 
-  if (__afl_cmp_map) { memset(__afl_cmp_map, 0, sizeof(struct cmp_map)); }
+  if (__afl_cmp_map) {
+
+    memset_noasan(__afl_cmp_map, 0, sizeof(struct cmp_map));
+
+  }
 
 }
 
@@ -3211,7 +3257,7 @@ void ijon_max(uint32_t addr, u64 val) {
 
     /* Clear IJON max area on first initialization to avoid processing
      * uninitialized data */
-    memset(__afl_ijon_bits, 0, MAP_SIZE_IJON_ENTRIES * sizeof(u64));
+    memset_noasan(__afl_ijon_bits, 0, MAP_SIZE_IJON_ENTRIES * sizeof(u64));
 
   }
 
@@ -3338,8 +3384,8 @@ void ijon_reset_state(void) {
  * 64-bit */
 uint32_t ijon_hashstack_backtrace(void) {
 
-#if defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) || \
-    defined(__NetBSD__) || defined(__OpenBSD__)
+#if (defined(__linux__) && defined(__GLIBC__)) || defined(__APPLE__) || \
+    defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
   void *buffer[16] = {
 
       0,
